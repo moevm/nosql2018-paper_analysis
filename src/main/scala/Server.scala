@@ -1,24 +1,17 @@
-import com.twitter.finagle.http.Request
-import com.twitter.finatra.http.response.ResponseBuilder
-import com.twitter.finatra.http.routing.HttpRouter
-import com.twitter.finatra.http.{Controller, HttpServer}
-import com.twitter.finatra.request.QueryParam
-import com.twitter.util.Future
-import dao.PaperGraphDao
-import services.GraphFillService
-import services.GraphFillService.CyberleninkaPageData
+  import Requests._
+  import com.twitter.finagle.http.Request
+  import com.twitter.finatra.http.response.ResponseBuilder
+  import com.twitter.finatra.http.routing.HttpRouter
+  import com.twitter.finatra.http.{Controller, HttpServer}
+  import com.twitter.finatra.request.QueryParam
+  import com.twitter.util.{Future, Return, Throw}
+  import dao.{PaperGraphDao, PaperGraphDaoImpl}
+  import services.{GraphService, GraphServiceImpl}
+  import services.GraphService.{Citation, CyberleninkaPageData, Cycle, Paper}
 
 object FinatraMain extends FinatraServer {
-  case class CreateAuthorRequest(@QueryParam name: String)
-  case class CreatePaperRequest(@QueryParam title: String)
-  case class CreateRelationRequest(@QueryParam name: String,
-                                   @QueryParam title: String)
-  case class PersistParsedPageRequest(@QueryParam name: String,
-                                      @QueryParam title: String)
-
-
-  val paperGraphDao = new PaperGraphDao()
-  val graphFillService = new GraphFillService(paperGraphDao)
+  val paperGraphDao: PaperGraphDao = new PaperGraphDaoImpl()
+  val graphService: GraphService = new GraphServiceImpl(paperGraphDao)
 }
 
 class FinatraServer extends HttpServer {
@@ -30,52 +23,57 @@ class FinatraServer extends HttpServer {
 class MainController extends Controller {
   import FinatraMain._
 
-  implicit def persistRequestToDomain(request: PersistParsedPageRequest): CyberleninkaPageData = {
-    CyberleninkaPageData(authorName = request.name, paperTitle = request.title)
-  }
-
   implicit class EnrichResponse[T](future: Future[T]) {
-    def toTextResponse: Future[ResponseBuilder#EnrichedResponse] = {
+    def toTextStatusResponse: Future[ResponseBuilder#EnrichedResponse] = {
       future
-        .map(_ => response.ok("OK"))
-        .rescue { case e => Future.value(response.ok(s"NOT OK: $e")) }
+          .transform {
+            case Return(_) => Future.value(response.ok("OK"))
+            case Throw(e) => Future.value(response.ok(s"NOT OK: $e"))
+          }
     }
   }
 
-  get("/hello") { request: Request =>
+  get("/hello") { _: Request =>
     "Hello, World!"
   }
 
   prefix("/graph") {
+    get("/find_reference_cycles") { request: Request =>
+      graphService
+        .findReferenceCycles()
+        .map { papersCycle =>
+          FindReferenceCyclesResponse(papersCycle.map(_.map(_.title)))
+        }
+    }
     get("/persist_parsed_paper") { request: PersistParsedPageRequest =>
-      graphFillService
-        .persistParsedPaper(request)
-        .toTextResponse
+      graphService
+        .persistParsedPaper(request.toPageData)
+        .toTextStatusResponse
     }
     prefix("/authors") {
-      get("/get") { request: Request =>
-        response.ok("NOT IMPLEMENTED YET IM REALLY SORRY LOL")
-      }
       get("/create") { request: CreateAuthorRequest =>
-         graphFillService
-           .createAuthor(request.name)
-           .toTextResponse
+        graphService
+          .createAuthor(request.name)
+          .toTextStatusResponse
       }
     }
 
     prefix("/papers") {
+      get("/get") { request: PaperGetRequest =>
+        graphService.getPaper(request.title)
+      }
       get("/create") { request: CreatePaperRequest =>
-        graphFillService
-          .createPaper(request.title)
-          .toTextResponse
+        graphService
+          .createPaper(request.toPaper)
+          .toTextStatusResponse
       }
     }
 
     prefix("/relations") {
       get("/create") { request: CreateRelationRequest =>
-        graphFillService
+        graphService
           .createWroteRelation(request.name, request.title)
-          .toTextResponse
+          .toTextStatusResponse
       }
     }
   }
@@ -83,3 +81,47 @@ class MainController extends Controller {
 
   }
 }
+
+  object Requests {
+    case class CreateAuthorRequest(@QueryParam name: String)
+
+    case class CreatePaperRequest(@QueryParam
+                                  title: String,
+                                  @QueryParam
+                                  journalName: String,
+                                  @QueryParam
+                                  researchField: String,
+                                  @QueryParam
+                                  year: Int,
+                                  @QueryParam
+                                  link: String) {
+      def toPaper: Paper = {
+        Paper(title, journalName, researchField, year, link)
+      }
+    }
+
+    case class CreateRelationRequest(@QueryParam name: String,
+                                     @QueryParam title: String)
+
+    case class PersistParsedPageRequest(@QueryParam
+                                        authorName: String,
+                                        @QueryParam
+                                        paper: Paper,
+                                        @QueryParam
+                                        citations: Seq[Citation]) {
+
+      def toPageData: CyberleninkaPageData = {
+        CyberleninkaPageData(
+          authorName = authorName,
+          paper = paper,
+          citations = citations
+        )
+      }
+    }
+
+    case class PaperGetRequest(@QueryParam
+                               title: String)
+
+    case class FindReferenceCyclesResponse(@QueryParam
+                                           papers: List[List[String]])
+  }
