@@ -108,7 +108,7 @@ class PaperGraphDaoImpl extends PaperGraphDao {
 
   def getPaper(paperTitle: String): Future[Paper] = {
     doQuery(tx => {
-      recordToPaper(
+      entityToPaper(
         tx.run(
           """MATCH
             | (p:Paper { title: $title })
@@ -117,7 +117,7 @@ class PaperGraphDaoImpl extends PaperGraphDao {
           parameters(
             "title", paperTitle
           )
-        ).single()
+        ).single().get("p").asEntity()
       )
     })
   }
