@@ -4,7 +4,7 @@ import com.twitter.util.{Future, FuturePool}
 import org.neo4j.driver.v1._
 import org.neo4j.driver.v1.Values.parameters
 import org.neo4j.driver.v1.types.Entity
-import services.GraphService.Paper
+import services.GraphService.{Citation, Paper, Reference}
 
 import scala.collection.JavaConverters._
 
@@ -16,6 +16,10 @@ trait PaperGraphDao {
   def createReferenceRelation(sourcePaperTitle: String, targetPaperTitle: String): Future[Unit]
   def createWroteRelation(authorName: String, paperTitle: String): Future[Unit]
   def getPaper(paperTitle: String): Future[Paper]
+  def searchPapers(researchField: String): Future[List[String]]
+  def getResearchFields(): Future[List[String]]
+  def getReferencesByAuthorName(authorName: String): Future[List[Reference]]
+  def getReferencesByPaperTitle(paperTitle: String): Future[List[Reference]]
 }
 
 class PaperGraphDaoImpl extends PaperGraphDao {
@@ -134,6 +138,52 @@ class PaperGraphDaoImpl extends PaperGraphDao {
           if (session != null) session.close()
         }
       }
+    }
+  }
+
+  override def searchPapers(researchField: String): Future[List[String]] = {
+    doQuery { tx =>
+      recordToPapersList(
+        tx.run(
+          """MATCH
+            | (p:Paper { research_field: $researchField })
+            | RETURN p"""
+            .stripMargin,
+          parameters(
+            "researchField", researchField
+          )
+        ).single()
+      ).map(_.title)
+    }
+  }
+
+  override def getResearchFields(): Future[List[String]] = {
+    doQuery {
+      _.run(
+        """MATCH (p:Paper) WITH DISTINCT p.research_field as rf RETURN rf""",
+      )
+        .list()
+        .asScala
+        .toList
+        .map(_.get(0).asString)
+    }
+  }
+
+  override def getReferencesByAuthorName(authorName: String): Future[List[Reference]] = {
+//    doQuery {
+//      _.run(
+//        """MATCH (p1: Paper {} )-[:REFERENCES]->(p2) WITH DISTINCT p.research_field as rf RETURN rf""",
+//      )
+//    }
+    ???
+  }
+
+  override def getReferencesByPaperTitle(paperTitle: String): Future[List[Reference]] = {
+    doQuery {
+      _.run(
+        """MATCH (p1: Paper { title: $paper_title } )-[x:REFERENCES]->(p2) RETURN p1.title as source, p2.title as target""",
+        parameters("paper_title", paperTitle)
+      ).list().asScala.toList.map(x => Reference(x.get("source").asString, x.get("target").asString))
     }
   }
 }
