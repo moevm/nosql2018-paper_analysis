@@ -38,6 +38,12 @@ class MainController extends Controller {
   }
 
   prefix("/graph") {
+    post("/import") { request: Request => ()
+
+    }
+    get("/search") { request: Request =>
+
+    }
     get("/find_reference_cycles") { request: Request =>
       graphService
         .findReferenceCycles()
@@ -50,6 +56,14 @@ class MainController extends Controller {
         .persistParsedPaper(request.toPageData)
         .toTextStatusResponse
     }
+
+    prefix("/research_fields") {
+      get("/list") { request: Request =>
+        graphService
+          .getResearchFields()
+      }
+    }
+
     prefix("/authors") {
       get("/create") { request: CreateAuthorRequest =>
         graphService
@@ -62,6 +76,9 @@ class MainController extends Controller {
       get("/get") { request: PaperGetRequest =>
         graphService.getPaper(request.title)
       }
+      get("/search") { request: PapersSearchRequest =>
+        graphService.searchPapers(request.researchField)
+      }
       get("/create") { request: CreatePaperRequest =>
         graphService
           .createPaper(request.toPaper)
@@ -69,16 +86,16 @@ class MainController extends Controller {
       }
     }
 
-    prefix("/relations") {
+    prefix("/references") {
+      get("/get") { request: ReferencesGetRequest =>
+        graphService.getReferences(request.authorName, request.paperTitle)
+      }
       get("/create") { request: CreateRelationRequest =>
         graphService
           .createWroteRelation(request.name, request.title)
           .toTextStatusResponse
       }
     }
-  }
-  prefix("/queries") {
-
   }
 }
 
@@ -124,4 +141,12 @@ class MainController extends Controller {
 
     case class FindReferenceCyclesResponse(@QueryParam
                                            papers: List[List[String]])
+
+    case class PapersSearchRequest(@QueryParam researchField: String)
+
+    case class ReferencesGetRequest(@QueryParam
+                                    authorName: Option[String],
+                                    @QueryParam
+                                    paperTitle: Option[String])
+
   }
