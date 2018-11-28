@@ -1,0 +1,261 @@
+*, html, body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: "Roboto", sans-serif;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    background-color:  rgb(96, 125, 139);
+}
+
+.screen {
+    display: none;
+    height: 650px;
+    width: 80%;
+    transform: translateX(-50%);
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    z-index: 0;
+}
+
+[data-back] {
+    cursor: pointer;
+    font-size: 32px;
+}
+
+#main {
+    display: block;
+    text-align: center;
+    z-index: 1;
+}
+
+#main-buttons {
+    margin: 50px 0;
+}
+
+#input-file {
+    display: none;
+}
+
+button {
+    border: 0;
+    outline: none;
+    cursor: pointer;
+    background-color: rgb(3, 169, 244);
+    color: white;
+    border-radius: 2px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    transition: all .3s ease-out;
+}
+
+button:hover {
+    background-color: rgb(46, 181, 243);
+}
+
+#main-buttons button {
+    display: block;
+    width: 30%;
+    margin: 50px auto;
+    padding: 20px 0px;
+    font-size: 18px;
+}
+
+#search {
+    padding: 20px 30px;
+    border-radius: 3px;
+    background: white;
+    box-shadow: 0 3px 10px rgba(0,0,0,.23),0 3px 10px rgba(0,0,0,.16);
+}
+
+#search-area {
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(184, 184, 184, 0.74);
+}
+
+#search-area input {
+    width: 40%;
+    padding: 5px 10px;
+    font-size: 16px;
+    color: rgb(116, 116, 116);
+    border: 0;
+    border-radius: 2px;
+    outline: none;
+    vertical-align: bottom;
+    border: 1px solid rgba(209, 209, 209, 0.664);
+}
+
+#do-search {
+    padding: 7px 30px;
+    vertical-align: top;
+    margin-left: 5px;
+}
+
+#search-results .result{
+    cursor: pointer;
+    width: 400px;
+    padding: 10px;
+    margin: 20px 0px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+    border-radius: 5px;
+}
+
+#search-results .result:hover{
+    box-shadow: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
+}
+
+.result h2 {
+    margin: 0;
+    margin-bottom: 0px;
+    padding-bottom: 10px;
+    margin-bottom: 5px;
+    border-bottom: 1px solid #d1d1d199;
+}
+
+.result span {
+    display: block;
+}
+
+#graph {
+    position: relative;
+    padding: 20px 30px;
+    border-radius: 3px;
+    background: white;
+    box-shadow: 0 3px 10px rgba(0,0,0,.23),0 3px 10px rgba(0,0,0,.16);
+}
+
+#graph h1 {
+    margin: 0;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(184, 184, 184, 0.74);
+}
+
+#options {
+    width: 20%;
+    float: left;
+    padding: 20px 10px;
+}
+
+#graph-area {
+    height: calc(100% - 80px);
+    width: 75%;
+    right: 30px;
+    top: 80px;
+    position: absolute;
+}
+
+#graph input[type='checkbox'] {
+    vertical-align: baseline;
+}
+
+#graph #options select{
+    position: relative;
+    cursor: pointer;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    display: block;
+    width: 100%;
+    margin: 20px 0px;
+    border: 1px solid #d1d1d1;
+    font-size: 16px;
+    padding: 5px 10px;
+}
+
+span#self {
+    font-size: 16px;
+}
+
+#graph-export{
+    display: block;
+    width: 100%;
+    padding: 10px;
+}
+
+/* LOADER */
+.lds-spinner {
+    display: inline-block;
+    visibility: hidden;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 64px;
+    height: 64px;
+  }
+  .lds-spinner div {
+    transform-origin: 32px 32px;
+    animation: lds-spinner 1.2s linear infinite;
+  }
+  .lds-spinner div:after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 3px;
+    left: 29px;
+    width: 5px;
+    height: 14px;
+    border-radius: 20%;
+    background: rgb(3, 169, 244);
+  }
+  .lds-spinner div:nth-child(1) {
+    transform: rotate(0deg);
+    animation-delay: -1.1s;
+  }
+  .lds-spinner div:nth-child(2) {
+    transform: rotate(30deg);
+    animation-delay: -1s;
+  }
+  .lds-spinner div:nth-child(3) {
+    transform: rotate(60deg);
+    animation-delay: -0.9s;
+  }
+  .lds-spinner div:nth-child(4) {
+    transform: rotate(90deg);
+    animation-delay: -0.8s;
+  }
+  .lds-spinner div:nth-child(5) {
+    transform: rotate(120deg);
+    animation-delay: -0.7s;
+  }
+  .lds-spinner div:nth-child(6) {
+    transform: rotate(150deg);
+    animation-delay: -0.6s;
+  }
+  .lds-spinner div:nth-child(7) {
+    transform: rotate(180deg);
+    animation-delay: -0.5s;
+  }
+  .lds-spinner div:nth-child(8) {
+    transform: rotate(210deg);
+    animation-delay: -0.4s;
+  }
+  .lds-spinner div:nth-child(9) {
+    transform: rotate(240deg);
+    animation-delay: -0.3s;
+  }
+  .lds-spinner div:nth-child(10) {
+    transform: rotate(270deg);
+    animation-delay: -0.2s;
+  }
+  .lds-spinner div:nth-child(11) {
+    transform: rotate(300deg);
+    animation-delay: -0.1s;
+  }
+  .lds-spinner div:nth-child(12) {
+    transform: rotate(330deg);
+    animation-delay: 0s;
+  }
+  @keyframes lds-spinner {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  
