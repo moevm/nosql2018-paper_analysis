@@ -4,13 +4,13 @@ import com.twitter.util.{Future, FuturePool}
 import org.neo4j.driver.v1._
 import org.neo4j.driver.v1.Values.parameters
 import org.neo4j.driver.v1.types.Entity
-import services.GraphService.{Citation, Paper, Reference}
+import services.GraphService._
 
 import scala.collection.JavaConverters._
 
 
 trait PaperGraphDao {
-  def findReferenceCycles(): Future[List[List[Paper]]]
+  def findReferenceCycles(): Future[List[Loop]]
   def createAuthor(name: String): Future[Unit]
   def createPaper(paper: Paper): Future[Unit]
   def createReferenceRelation(sourcePaperTitle: String, targetPaperTitle: String): Future[Unit]
@@ -25,21 +25,27 @@ trait PaperGraphDao {
 class PaperGraphDaoImpl extends PaperGraphDao {
   import PaperGraphDao._
 
-  def findReferenceCycles(): Future[List[List[Paper]]] = {
-    doQuery[List[List[Paper]]] { tx =>
+  def findReferenceCycles(): Future[List[Loop]] = {
+    doQuery[List[Loop]] { tx =>
       val result = tx.run(
-        """MATCH p = (n:Paper)-[*]->(n:Paper) RETURN nodes(p)""".stripMargin,
+        """MATCH (n:Paper)
+          |RETURN [x IN (n)-[*]->(n) |
+          | [z IN  nodes(x) | z {
+          |                       .title,
+          |                       author : [(a)-[:WROTE]->(z) | a.name][0]
+          |                     }
+          | ]
+          |]""".stripMargin,
         parameters()
       )
 
-      val aaa = new org.neo4j.driver.v1.util.Function[Record, List[Paper]] {
-        override def apply(record: Record): List[Paper] = {
+      val aaa = new org.neo4j.driver.v1.util.Function[Record, List[LoopEntity]] {
+        override def apply(record: Record): List[LoopEntity] = {
           record
             .values()
             .get(0)
-            .asList(z => entityToPaper(z.asEntity()))
-            .asScala
-            .toList
+            .asList(_.asList(z => mapToLoopEntity(z.asMap(_.asString()).asScala.toMap)).asScala.toList)
+            .get(0)
         }
       }
       result.list(aaa).asScala.toList
@@ -230,6 +236,15 @@ object PaperGraphDao {
         record.get("research_field").asString(),
         record.get("year").asInt(),
         record.get("link").asString()
+      )
+    }
+  }
+
+  val mapToLoopEntity = new org.neo4j.driver.v1.util.Function[Map[String, String], LoopEntity] {
+    override def apply(record: Map[String, String]): LoopEntity = {
+      LoopEntity(
+        record.get("author").orNull,
+        record.get("title").orNull
       )
     }
   }

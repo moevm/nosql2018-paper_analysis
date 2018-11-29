@@ -7,7 +7,7 @@
   import com.twitter.util.{Future, Return, Throw}
   import dao.{PaperGraphDao, PaperGraphDaoImpl}
   import services.{GraphService, GraphServiceImpl}
-  import services.GraphService.{Citation, CyberleninkaPageData, Cycle, Paper}
+  import services.GraphService._
 
 object FinatraMain extends FinatraServer {
   val paperGraphDao: PaperGraphDao = new PaperGraphDaoImpl()
@@ -48,7 +48,7 @@ class MainController extends Controller {
       graphService
         .findReferenceCycles()
         .map { papersCycle =>
-          FindReferenceCyclesResponse(papersCycle.map(_.map(_.title)))
+          FindReferenceCyclesResponse(papersCycle)
         }
     }
     get("/persist_parsed_paper") { request: PersistParsedPageRequest =>
@@ -140,7 +140,7 @@ class MainController extends Controller {
                                title: String)
 
     case class FindReferenceCyclesResponse(@QueryParam
-                                           papers: List[List[String]])
+                                           papers: List[List[LoopEntity]])
 
     case class PapersSearchRequest(@QueryParam researchField: String)
 

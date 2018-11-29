@@ -2,7 +2,7 @@ package services
 
 import com.twitter.util.Future
 import dao.PaperGraphDao
-import services.GraphService.{CyberleninkaPageData, Cycle, Paper, Reference}
+import services.GraphService.{CyberleninkaPageData, Loop, Paper, Reference}
 
 trait GraphService {
   def createAuthor(name: String): Future[Unit]
@@ -14,7 +14,7 @@ trait GraphService {
 
   def persistParsedPaper(data: CyberleninkaPageData): Future[Unit]
 
-  def findReferenceCycles(): Future[List[Cycle]]
+  def findReferenceCycles(): Future[List[Loop]]
 
   def getResearchFields(): Future[List[String]]
 
@@ -51,7 +51,7 @@ class GraphServiceImpl(dao: PaperGraphDao) extends GraphService {
     dao.getPaper(paperTitle)
   }
 
-  override def findReferenceCycles(): Future[List[Cycle]] = {
+  override def findReferenceCycles(): Future[List[Loop]] = {
     dao.findReferenceCycles()
   }
 
@@ -73,7 +73,7 @@ class GraphServiceImpl(dao: PaperGraphDao) extends GraphService {
 }
 
 object GraphService {
-  type Cycle = List[Paper]
+  type Loop = List[LoopEntity]
   case class CyberleninkaPageData(authorName: String, paper: Paper, citations: Seq[Citation])
 
   case class Citation(author: String, title: String)
@@ -81,4 +81,6 @@ object GraphService {
   case class Paper(title: String, journalName: String, researchField: String, year: Int, link: String)
 
   case class Reference(sourcePaperTitle: String, targetPaperTitle: String)
+
+  case class LoopEntity(author_name: String, paper_title: String)
 }
