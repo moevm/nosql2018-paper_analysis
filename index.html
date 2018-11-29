@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+        Статьи
+    </title>
+
+    <script src="js/jquery-3.3.1.min.js"></script>
+	<script src="js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+    <script src="js/custom.js"></script>
+
+    <link href="css/bootstrap.css" rel="stylesheet" />
+    <link href="css/custom.css" rel="stylesheet" />
+
+    <link href='https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css' rel='stylesheet' type='text/css' />
+    <link href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" rel='stylesheet' type='text/css' >
+    <link href='https://fonts.googleapis.com/css?family=Roboto:300' rel='stylesheet' type='text/css' />
+</head>
+
+<body>
+    <div class="screen" id="main">
+        <div id="main-area">
+            <h1>Анализ научных статей</h1>
+
+            <div id="main-buttons">
+                <input name="file" type="file" id="input-file">
+                <button id="input-file-button">Импорт базы данных</button>
+
+                <button id="search-button">Поиск базе данных</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="screen" id="search">
+        <div id="search-area">
+            <i class="fas fa-chevron-left" data-back="main">&nbsp;</i> 
+            <input type="text" name="query" placeholder="Как помыть посуду...">
+            <button id="do-search">Поиск</button>
+        </div>
+        
+        <div id="search-results"></div>
+        <div class="lds-spinner"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+    </div>
+
+    <div class="screen" id="graph">
+        <h1><i class="fas fa-chevron-left" data-back="search"></i> Граф цитирования</h1>
+
+        <div id="options">
+            <input type="checkbox" name="slef">
+            <span id="self">Самоцетирование</span>
+
+            <select name="theme">
+                <option value="" disabled selected>Выбрать тему</option>
+            </select>
+
+            <select name="article">
+                <option value="" disabled selected>Выбрать статью</option>
+            </select>
+
+            <button id="graph-export">Экспорт</button>
+        </div>
+
+        <div id="graph-area"></div>
+        <div style="clear: both"></div>
+    </div>
+</body>
+
+</html>
