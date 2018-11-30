@@ -1,4 +1,4 @@
-const api = "http://172.18.14.33:8888/graph/";
+const api = "http://localhost:8888/graph/";
 
 $(function() {
     $("#input-file-button").click(function(){
@@ -25,14 +25,6 @@ $(function() {
         $(".lds-spinner").css("visibility", "visible");
 
         $.get(api + "papers/get?title=" + encodeURIComponent(query), function(data){
-            /*const data = {
-                "title": "Как помыть посуду",
-                "journal_name": "Домохозяйка",
-                "research_field": "Домохозяйство",
-                "year": 1999,
-                "link": "https://google.com"
-            };*/ // <== TEST
-
             $(".lds-spinner").css("visibility", "hidden");
 
             $("#search-results").html('<div class="result" data-title="' + data["title"] + '" data-topic="' + data['research_field'] + '">' +
@@ -58,6 +50,30 @@ $(function() {
                     list.forEach(l => {
                         $("#options select[name='theme']").append('<option value="' + l + '">' + l + '</option>');
                     });
+                });
+            });
+        });
+    });
+
+    $("#get-loops").click(function(){
+        $(".screen").hide();
+        $("#loops").fadeIn(300);
+        $(".lds-spinner").css("visibility", "visible");
+
+        $.get(api + "find_reference_cycles", function(list){
+
+            $("#loops .loops").empty();
+            $(".lds-spinner").css("visibility", "hidden");
+
+            list.papers.forEach((paper, i) => {
+                $("#loops .loops").append('<div class="loop" data-num="' + i + '"></div>');
+
+                paper.forEach((elem, j) => {
+                    $(".loop[data-num='" + i + "']").append('<div class="paper"><h2>' + elem['paper_title'] + '</h2><span>' + elem['author_name'] + '</span></div>');
+
+                    if(paper.length !== j+1){
+                        $(".loop[data-num='" + i + "']").append('<img class="arrow" src="img/arrow.png" />');
+                    }
                 });
             });
         });
