@@ -1,4 +1,5 @@
-  import Requests._
+package main
+
   import com.twitter.finagle.http.Request
   import com.twitter.finatra.http.response.ResponseBuilder
   import com.twitter.finatra.http.routing.HttpRouter
@@ -6,8 +7,9 @@
   import com.twitter.finatra.request.QueryParam
   import com.twitter.util.{Future, Return, Throw}
   import dao.{PaperGraphDao, PaperGraphDaoImpl}
-  import services.{GraphService, GraphServiceImpl}
+  import main.Requests._
   import services.GraphService._
+  import services.{GraphService, GraphServiceImpl}
 
 object FinatraMain extends FinatraServer {
   val paperGraphDao: PaperGraphDao = new PaperGraphDaoImpl()
@@ -38,11 +40,11 @@ class MainController extends Controller {
   }
 
   prefix("/graph") {
-    post("/import") { request: Request => ()
-
+    post("/import") { request: PaperImportRequest =>
+      graphService.importGraph(request)
     }
-    get("/search") { request: Request =>
-
+    get("/search") { request: SearchRequest =>
+        graphService.search(request.authorName, request.paperTitle, request.researchField)
     }
     get("/find_reference_cycles") { request: Request =>
       graphService
@@ -87,9 +89,6 @@ class MainController extends Controller {
     }
 
     prefix("/references") {
-      get("/get") { request: ReferencesGetRequest =>
-        graphService.getReferences(request.authorName, request.paperTitle)
-      }
       get("/create") { request: CreateRelationRequest =>
         graphService
           .createWroteRelation(request.name, request.title)
@@ -100,6 +99,8 @@ class MainController extends Controller {
 }
 
   object Requests {
+    import GraphService._
+
     case class CreateAuthorRequest(@QueryParam name: String)
 
     case class CreatePaperRequest(@QueryParam
@@ -139,14 +140,22 @@ class MainController extends Controller {
     case class PaperGetRequest(@QueryParam
                                title: String)
 
-    case class FindReferenceCyclesResponse(@QueryParam
-                                           papers: List[List[LoopEntity]])
+    case class FindReferenceCyclesResponse(papers: List[List[LoopEntity]])
 
     case class PapersSearchRequest(@QueryParam researchField: String)
 
-    case class ReferencesGetRequest(@QueryParam
-                                    authorName: Option[String],
-                                    @QueryParam
-                                    paperTitle: Option[String])
+    case class SearchRequest(@QueryParam
+                             authorName: Option[String],
+                             @QueryParam
+                             paperTitle: Option[String],
+                             @QueryParam
+                             researchField: Option[String])
 
+    case class Author(name: String)
+
+    case class Reference(sourcePaperTitle: String, targetPaperTitle: String)
+
+    case class PaperSearchResult(author: Author, title: String, journalName: String, researchField: String, year: Int, link: String, references: Seq[Reference])
+
+    case class PaperImportRequest(importPapers: Seq[PaperSearchResult])
   }

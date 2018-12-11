@@ -1,6 +1,8 @@
 package dao
 
 import com.twitter.util.{Future, FuturePool}
+import dao.PaperGraphDao.SearchRowResult
+import main.Requests.{Author, Reference}
 import org.neo4j.driver.v1._
 import org.neo4j.driver.v1.Values.parameters
 import org.neo4j.driver.v1.types.Entity
@@ -18,8 +20,8 @@ trait PaperGraphDao {
   def getPaper(paperTitle: String): Future[Paper]
   def searchPapers(researchField: String): Future[List[String]]
   def getResearchFields(): Future[List[String]]
-  def getReferencesByAuthorName(authorName: String): Future[List[Reference]]
-  def getReferencesByPaperTitle(paperTitle: String): Future[List[Reference]]
+  def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String]): Future[List[SearchRowResult]]
+  def importGraph(authors: Seq[(Author, Paper)], papers: Seq[Paper], references: Seq[Reference]): Future[Unit]
 }
 
 class PaperGraphDaoImpl extends PaperGraphDao {
@@ -175,28 +177,81 @@ class PaperGraphDaoImpl extends PaperGraphDao {
     }
   }
 
-  override def getReferencesByAuthorName(authorName: String): Future[List[Reference]] = {
-//    doQuery {
-//      _.run(
-//        """MATCH (p1: Paper {} )-[:REFERENCES]->(p2) WITH DISTINCT p.research_field as rf RETURN rf""",
-//      )
-//    }
-    ???
-  }
-
-  override def getReferencesByPaperTitle(paperTitle: String): Future[List[Reference]] = {
+  override def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String]): Future[List[SearchRowResult]] = {
+    val buildPaperQuery = Seq(paperTitle.map(x => s"title: '$x'"), researchField.map(x => s"research_field: '$x'")).flatten.mkString(", ")
     doQuery {
       _.run(
-        """MATCH (p1: Paper { title: $paper_title } )-[x:REFERENCES]->(p2) RETURN p1.title as source, p2.title as target""",
-        parameters("paper_title", paperTitle)
-      ).list().asScala.toList.map(x => Reference(x.get("source").asString, x.get("target").asString))
+        ("""MATCH (p1: Paper {""" + buildPaperQuery + """ } )-[x:REFERENCES]->(p2),
+           |      (a: Author { """ + authorName.map(x => s"name: '$x'").getOrElse("") + """ } )-[:WROTE]->(p1)
+           |RETURN a as author, p1 as paper, p1.title as source, p2.title as target
+           |UNION
+           |MATCH (p: Paper {""" + buildPaperQuery + """ } ), (a: Author { """ + authorName.map(x => s"name: '$x'").getOrElse("") + """ })
+           |WHERE (a: Author)-[:WROTE]->(p)
+           |AND
+           |NOT (p: Paper)-[:REFERENCES]->(:Paper)
+           |RETURN a as author, p as paper, null as source, null as target""").stripMargin
+      ).list()
+        .asScala
+        .toList
+        .map {
+          x =>
+            val src = x.get("source").asString
+            val tgt = x.get("target").asString
+
+            val reference = for {
+              source <- if (src == "null") None else Some(src)
+              target <- if (tgt == "null") None else Some(tgt)
+            } yield Reference(source, target)
+
+            PaperGraphDao.SearchRowResult(
+              entityToAuthor(x.get("author").asEntity()),
+              entityToPaper(x.get("paper").asEntity()),
+              reference,
+            )
+        }
     }
+  }
+
+  override def importGraph(authors: Seq[(Author, Paper)], papers: Seq[Paper], references: Seq[Reference]): Future[Unit] = {
+    val buildCreatePapersQuery = "MERGE " + papers.map {
+      p => s"(:Paper { link: '${p.link}', journal_name: '${p.link}', title: '${p.title}', year: ${p.year}, research_field: '${p.researchField}'})"
+    }.mkString(", \n")
+
+    val buildCreateAuthorsQuery = "MERGE " + authors.map {
+      case (a, _) => s"(:Author { name: '${a.name}' })"
+    }.mkString(", \n")
+
+    val buildCreateWroteQuery = authors.map {
+      case (a, p) =>
+        s"""MATCH (a:Author),(p:Paper)
+           |WHERE a.name = '${a.name}'
+           |AND p.title = '${p.title}'
+           |MERGE (a)-[:WROTE]->(p)""".stripMargin
+    }.mkString("\nWITH 1 as dummy\n")
+
+    val buildCreateReferencesQuery = references.map {
+      case Reference(src, tgt) =>
+        s"""MATCH (p1:Paper),(p2:Paper)
+           |WHERE p1.title = '$src'
+           |AND p2.title = '$tgt'
+           |MERGE (p1)-[:REFERENCES]->(p2)""".stripMargin
+    }.mkString("\nWITH 1 as dummy\n")
+
+    val query =
+      Seq(buildCreatePapersQuery, buildCreateAuthorsQuery, buildCreateWroteQuery, buildCreateReferencesQuery)
+        .mkString("\nWITH 1 as dummy\n")
+
+    doQuery {
+      _.run(query)
+    }.map(_ => ())
   }
 }
 
 object PaperGraphDao {
   val uri = "bolt://localhost:7687"
   val driver = GraphDatabase.driver(uri, AuthTokens.none())
+
+  case class SearchRowResult(author: Author, paper: Paper, reference: Option[Reference])
 
   val recordToPapersList = new org.neo4j.driver.v1.util.Function[Record, List[Paper]] {
     override def apply(record: Record): List[Paper] = {
@@ -236,6 +291,14 @@ object PaperGraphDao {
         record.get("research_field").asString(),
         record.get("year").asInt(),
         record.get("link").asString()
+      )
+    }
+  }
+
+  val entityToAuthor = new org.neo4j.driver.v1.util.Function[Entity, Author] {
+    override def apply(record: Entity): Author = {
+      Author(
+        record.get("name").asString()
       )
     }
   }
