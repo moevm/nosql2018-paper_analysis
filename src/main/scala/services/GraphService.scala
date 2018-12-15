@@ -22,7 +22,7 @@ trait GraphService {
 
   def getResearchFields(): Future[List[String]]
 
-  def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String]): Future[Seq[PaperSearchResult]]
+  def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String], journalName: Option[String], year: Option[Int]): Future[Seq[PaperSearchResult]]
 
   def importGraph(data: PaperImportRequest): Future[Unit]
 }
@@ -69,8 +69,8 @@ class GraphServiceImpl(dao: PaperGraphDao) extends GraphService {
     dao.getResearchFields()
   }
 
-  def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String]): Future[Seq[PaperSearchResult]] = {
-    dao.search(authorName, paperTitle, researchField).map {
+  def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String], journalName: Option[String], year: Option[Int]): Future[Seq[PaperSearchResult]] = {
+    dao.search(authorName, paperTitle, researchField, journalName, year).map {
       _.groupBy(_.paper).map {
         case (p, resultList) =>
           PaperSearchResult(

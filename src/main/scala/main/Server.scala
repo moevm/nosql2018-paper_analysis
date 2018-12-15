@@ -44,7 +44,7 @@ class MainController extends Controller {
       graphService.importGraph(request)
     }
     get("/search") { request: SearchRequest =>
-        graphService.search(request.authorName, request.paperTitle, request.researchField)
+      graphService.search(request.authorName, request.paperTitle, request.researchField, request.journalName, request.year)
     }
     get("/find_reference_cycles") { request: Request =>
       graphService
@@ -149,7 +149,11 @@ class MainController extends Controller {
                              @QueryParam
                              paperTitle: Option[String],
                              @QueryParam
-                             researchField: Option[String])
+                             researchField: Option[String],
+                             @QueryParam
+                             journalName: Option[String],
+                             @QueryParam
+                             year: Option[Int])
 
     case class Author(name: String)
 

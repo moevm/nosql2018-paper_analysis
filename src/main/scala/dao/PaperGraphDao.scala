@@ -20,7 +20,7 @@ trait PaperGraphDao {
   def getPaper(paperTitle: String): Future[Paper]
   def searchPapers(researchField: String): Future[List[String]]
   def getResearchFields(): Future[List[String]]
-  def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String]): Future[List[SearchRowResult]]
+  def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String], journalName: Option[String], year: Option[Int]): Future[List[SearchRowResult]]
   def importGraph(authors: Seq[(Author, Paper)], papers: Seq[Paper], references: Seq[Reference]): Future[Unit]
 }
 
@@ -177,8 +177,14 @@ class PaperGraphDaoImpl extends PaperGraphDao {
     }
   }
 
-  override def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String]): Future[List[SearchRowResult]] = {
-    val buildPaperQuery = Seq(paperTitle.map(x => s"title: '$x'"), researchField.map(x => s"research_field: '$x'")).flatten.mkString(", ")
+  override def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String], journalName: Option[String], year: Option[Int]): Future[List[SearchRowResult]] = {
+    val buildPaperQuery =
+      Seq(
+        paperTitle.map(x => s"title: '$x'"),
+        researchField.map(x => s"research_field: '$x'"),
+        journalName.map(x => s"journal_name: '$x'"),
+        year.map(x => s"year: $x")
+      ).flatten.mkString(", ")
     doQuery {
       _.run(
         ("""MATCH (p1: Paper {""" + buildPaperQuery + """ } )-[x:REFERENCES]->(p2),
