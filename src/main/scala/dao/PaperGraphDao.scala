@@ -12,16 +12,17 @@ import scala.collection.JavaConverters._
 
 
 trait PaperGraphDao {
-  def findReferenceCycles(): Future[List[Loop]]
   def createAuthor(name: String): Future[Unit]
   def createPaper(paper: Paper): Future[Unit]
   def createReferenceRelation(sourcePaperTitle: String, targetPaperTitle: String): Future[Unit]
   def createWroteRelation(authorName: String, paperTitle: String): Future[Unit]
+
   def getPaper(paperTitle: String): Future[Paper]
-  def searchPapers(researchField: String): Future[List[String]]
   def getResearchFields(): Future[List[String]]
+
   def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String], journalName: Option[String], year: Option[Int]): Future[List[SearchRowResult]]
   def importGraph(authors: Seq[(Author, Paper)], papers: Seq[Paper], references: Seq[Reference]): Future[Unit]
+  def findReferenceCycles(): Future[List[Loop]]
 }
 
 class PaperGraphDaoImpl extends PaperGraphDao {
@@ -149,22 +150,6 @@ class PaperGraphDaoImpl extends PaperGraphDao {
     }
   }
 
-  override def searchPapers(researchField: String): Future[List[String]] = {
-    doQuery { tx =>
-      recordToPapersList(
-        tx.run(
-          """MATCH
-            | (p:Paper { research_field: $researchField })
-            | RETURN p"""
-            .stripMargin,
-          parameters(
-            "researchField", researchField
-          )
-        ).single()
-      ).map(_.title)
-    }
-  }
-
   override def getResearchFields(): Future[List[String]] = {
     doQuery {
       _.run(
@@ -219,13 +204,13 @@ class PaperGraphDaoImpl extends PaperGraphDao {
   }
 
   override def importGraph(authors: Seq[(Author, Paper)], papers: Seq[Paper], references: Seq[Reference]): Future[Unit] = {
-    val buildCreatePapersQuery = "MERGE " + papers.map {
-      p => s"(:Paper { link: '${p.link}', journal_name: '${p.link}', title: '${p.title}', year: ${p.year}, research_field: '${p.researchField}'})"
-    }.mkString(", \n")
+    val buildCreatePapersQuery = papers.map {
+      p => s"MERGE (:Paper { link: '${p.link}', journal_name: '${p.journalName}', title: '${p.title}', year: ${p.year}, research_field: '${p.researchField}'})"
+    }.mkString("\nWITH 1 as dummy\n")
 
-    val buildCreateAuthorsQuery = "MERGE " + authors.map {
-      case (a, _) => s"(:Author { name: '${a.name}' })"
-    }.mkString(", \n")
+    val buildCreateAuthorsQuery = authors.map {
+      case (a, _) => s"MERGE (:Author { name: '${a.name}' })"
+    }.mkString("\nWITH 1 as dummy\n")
 
     val buildCreateWroteQuery = authors.map {
       case (a, p) =>

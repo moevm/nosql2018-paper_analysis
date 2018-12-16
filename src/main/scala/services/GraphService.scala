@@ -8,23 +8,19 @@ import services.GraphService._
 trait GraphService {
   def createAuthor(name: String): Future[Unit]
 
-  def getPaper(title: String): Future[Paper]
-
   def createPaper(paper: Paper): Future[Unit]
 
   def createWroteRelation(authorName: String, paperTitle: String): Future[Unit]
 
-  def searchPapers(researchField: String): Future[List[String]]
-
-  def persistParsedPaper(data: CyberleninkaPageData): Future[Unit]
-
-  def findReferenceCycles(): Future[List[Loop]]
+  def getPaper(title: String): Future[Paper]
 
   def getResearchFields(): Future[List[String]]
 
   def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String], journalName: Option[String], year: Option[Int]): Future[Seq[PaperSearchResult]]
 
   def importGraph(data: PaperImportRequest): Future[Unit]
+
+  def findReferenceCycles(): Future[List[Loop]]
 }
 
 class GraphServiceImpl(dao: PaperGraphDao) extends GraphService {
@@ -42,27 +38,12 @@ class GraphServiceImpl(dao: PaperGraphDao) extends GraphService {
     dao.createWroteRelation(authorName, paperTitle)
   }
 
-  def persistParsedPaper(data: CyberleninkaPageData): Future[Unit] = {
-    Future.join(
-      Seq(
-        createAuthor(data.authorName),
-        createPaper(data.paper)
-      )
-    ).before {
-      createWroteRelation(data.authorName, data.paper.title)
-    }
-  }
-
   def getPaper(paperTitle: String): Future[Paper] = {
     dao.getPaper(paperTitle)
   }
 
   def findReferenceCycles(): Future[List[Loop]] = {
     dao.findReferenceCycles()
-  }
-
-  def searchPapers(researchField: String): Future[List[String]] = {
-    dao.searchPapers(researchField)
   }
 
   def getResearchFields(): Future[List[String]] = {
@@ -101,13 +82,10 @@ class GraphServiceImpl(dao: PaperGraphDao) extends GraphService {
 
 object GraphService {
   type Loop = List[LoopEntity]
-  case class CyberleninkaPageData(authorName: String, paper: Paper, citations: Seq[Citation])
+
+  case class LoopEntity(author_name: String, paper_title: String)
 
   case class Citation(author: String, title: String)
 
-
   case class Paper(title: String, journalName: String, researchField: String, year: Int, link: String)
-
-
-  case class LoopEntity(author_name: String, paper_title: String)
 }

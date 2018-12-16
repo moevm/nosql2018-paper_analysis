@@ -35,64 +35,67 @@ class MainController extends Controller {
     }
   }
 
-  get("/hello") { _: Request =>
-    "Hello, World!"
+  get("/hello") {
+    _: Request => "Hello, World!"
   }
 
   prefix("/graph") {
-    post("/import") { request: PaperImportRequest =>
-      graphService.importGraph(request)
+    post("/import") {
+      request: PaperImportRequest =>
+        graphService.importGraph(request)
     }
-    get("/search") { request: SearchRequest =>
-      graphService.search(request.authorName, request.paperTitle, request.researchField, request.journalName, request.year)
+    get("/search") {
+      request: SearchRequest =>
+        graphService.search(
+          request.authorName,
+          request.paperTitle,
+          request.researchField,
+          request.journalName,
+          request.year
+        )
     }
-    get("/find_reference_cycles") { request: Request =>
-      graphService
-        .findReferenceCycles()
-        .map { papersCycle =>
-          FindReferenceCyclesResponse(papersCycle)
-        }
-    }
-    get("/persist_parsed_paper") { request: PersistParsedPageRequest =>
-      graphService
-        .persistParsedPaper(request.toPageData)
-        .toTextStatusResponse
+    get("/find_reference_cycles") {
+      _: Request =>
+        graphService
+          .findReferenceCycles()
+          .map { papersCycle => FindReferenceCyclesResponse(papersCycle) }
     }
 
     prefix("/research_fields") {
-      get("/list") { request: Request =>
-        graphService
-          .getResearchFields()
+      get("/list") {
+        _: Request =>
+          graphService.getResearchFields()
       }
     }
 
     prefix("/authors") {
-      get("/create") { request: CreateAuthorRequest =>
-        graphService
-          .createAuthor(request.name)
-          .toTextStatusResponse
+      get("/create") {
+        request: CreateAuthorRequest =>
+          graphService
+            .createAuthor(request.name)
+            .toTextStatusResponse
       }
     }
 
     prefix("/papers") {
-      get("/get") { request: PaperGetRequest =>
-        graphService.getPaper(request.title)
+      get("/get") {
+        request: PaperGetRequest =>
+          graphService.getPaper(request.title)
       }
-      get("/search") { request: PapersSearchRequest =>
-        graphService.searchPapers(request.researchField)
-      }
-      get("/create") { request: CreatePaperRequest =>
-        graphService
-          .createPaper(request.toPaper)
-          .toTextStatusResponse
+      get("/create") {
+        request: CreatePaperRequest =>
+          graphService
+            .createPaper(request.toPaper)
+            .toTextStatusResponse
       }
     }
 
     prefix("/references") {
-      get("/create") { request: CreateRelationRequest =>
-        graphService
-          .createWroteRelation(request.name, request.title)
-          .toTextStatusResponse
+      get("/create") {
+        request: CreateRelationRequest =>
+          graphService
+            .createWroteRelation(request.name, request.title)
+            .toTextStatusResponse
       }
     }
   }
@@ -121,28 +124,8 @@ class MainController extends Controller {
     case class CreateRelationRequest(@QueryParam name: String,
                                      @QueryParam title: String)
 
-    case class PersistParsedPageRequest(@QueryParam
-                                        authorName: String,
-                                        @QueryParam
-                                        paper: Paper,
-                                        @QueryParam
-                                        citations: Seq[Citation]) {
-
-      def toPageData: CyberleninkaPageData = {
-        CyberleninkaPageData(
-          authorName = authorName,
-          paper = paper,
-          citations = citations
-        )
-      }
-    }
-
     case class PaperGetRequest(@QueryParam
                                title: String)
-
-    case class FindReferenceCyclesResponse(papers: List[List[LoopEntity]])
-
-    case class PapersSearchRequest(@QueryParam researchField: String)
 
     case class SearchRequest(@QueryParam
                              authorName: Option[String],
@@ -154,6 +137,8 @@ class MainController extends Controller {
                              journalName: Option[String],
                              @QueryParam
                              year: Option[Int])
+
+    case class FindReferenceCyclesResponse(papers: List[List[LoopEntity]])
 
     case class Author(name: String)
 

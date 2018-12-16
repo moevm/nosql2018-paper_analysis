@@ -1,0 +1,23 @@
+version: '3'
+
+services:
+  neo4j:
+    image: neo4j:latest
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    expose:
+      - "7474"
+      - "7687"
+    network_mode: "bridge"
+    environment:
+      - NEO4J_AUTH=none
+    volumes:
+      - "$HOME/neo4j/data:/data"
+
+  papers-server:
+    image: papers-server/papers-server:latest
+    ports:
+      - "8888:8888"
+    environment:
+      - JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF8
