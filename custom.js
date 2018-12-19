@@ -235,12 +235,14 @@ function renderMainGraph(list) {
             journal = paper["journal_name"],
             year = '' + paper["year"],
             topic = paper["research_field"];
+			
+		const authors = (paper["authors"] || []).map(a => a.name).join(", ");
 
         let index = nodesData.findIndex(n => n.label === title && n.type === 'paper');
         if(index === -1) {
             index = num + i;
 
-            nodesData.push({ id: index, label: title, title: '<b>Автор:</b> ' + paper.author.name, shape: 'dot', color: 'rgb(59, 75, 252)', size: 20, type: 'paper' });
+            nodesData.push({ id: index, label: title, title: '<b>Авторы:</b> ' + authors, shape: 'dot', color: 'rgb(59, 75, 252)', size: 20, type: 'paper' });
         }
 
         const jIndex = nodesData.findIndex(n => n.label === journal && n.type === 'journal');
