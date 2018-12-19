@@ -44,11 +44,15 @@ class PaperGraphDaoImpl extends PaperGraphDao {
 
       val aaa = new org.neo4j.driver.v1.util.Function[Record, List[LoopEntity]] {
         override def apply(record: Record): List[LoopEntity] = {
-          record
+          val abc = record
             .values()
             .get(0)
             .asList(_.asList(z => mapToLoopEntity(z.asMap(_.asString()).asScala.toMap)).asScala.toList)
-            .get(0)
+          if (abc.isEmpty) {
+            ???
+          } else {
+            abc.get(0)
+          }
         }
       }
       result.list(aaa).asScala.toList
@@ -137,15 +141,13 @@ class PaperGraphDaoImpl extends PaperGraphDao {
 
   def doQuery[T](transactionWork: TransactionWork[T]): Future[T] = {
     FuturePool.unboundedPool {
+      val session = driver.session
       try {
-        val session = driver.session
-        try {
-          session.writeTransaction(transactionWork)
-        } catch {
-          case e: Exception => println(e.toString); throw e
-        } finally {
-          if (session != null) session.close()
-        }
+        session.writeTransaction(transactionWork)
+      } catch {
+        case e: Exception => println(e.toString); throw e
+      } finally {
+        if (session != null) session.close()
       }
     }
   }

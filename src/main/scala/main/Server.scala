@@ -144,7 +144,7 @@ class MainController extends Controller {
 
     case class Reference(sourcePaperTitle: String, targetPaperTitle: String)
 
-    case class PaperSearchResult(author: Author, title: String, journalName: String, researchField: String, year: Int, link: String, references: Seq[Reference])
+    case class PaperSearchResult(authors: Seq[Author], title: String, journalName: String, researchField: String, year: Int, link: String, references: Seq[Reference])
 
     case class PaperImportRequest(importPapers: Seq[PaperSearchResult])
   }

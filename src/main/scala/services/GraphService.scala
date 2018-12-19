@@ -55,7 +55,7 @@ class GraphServiceImpl(dao: PaperGraphDao) extends GraphService {
       _.groupBy(_.paper).map {
         case (p, resultList) =>
           PaperSearchResult(
-            resultList.head.author,
+            resultList.map(_.author),
             p.title,
             p.journalName,
             p.researchField,
@@ -71,10 +71,10 @@ class GraphServiceImpl(dao: PaperGraphDao) extends GraphService {
     val (as, ps, rs) =
     data.importPapers.foldLeft((Seq.empty[(Author, Paper)], Seq.empty[Paper], Seq.empty[Reference])) {
       case ((authors, papers, references), elem) =>
-        val author = elem.author
+        val newAuthors = elem.authors
         val paper = Paper(elem.title, elem.journalName, elem.researchField, elem.year, elem.link)
         val refs = elem.references
-        (authors :+ ((author, paper)), papers :+ paper, references ++ refs)
+        (authors ++ newAuthors.map((_, paper)), papers :+ paper, references ++ refs)
     }
     dao.importGraph(as, ps, rs)
   }
