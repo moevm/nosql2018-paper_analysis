@@ -1,15 +1,34 @@
-const api = "http://localhost:8888/graph/";
+const api = "http://172.18.14.33:8888/graph/";
 
 $(function() {
-    $("#input-file-button").click(function(){
-        $("#input-file").click();
-    });
-
     $("[data-back]").click(function(){
         const backElem = $(this).data("back");
 
         $(".screen").hide();
         $("#" + backElem).fadeIn(300);
+    });
+
+    $("#input-file-button").click(function(){
+        $(".screen").hide();
+        $("#import").fadeIn(300);
+    });
+
+    $("#do-import").click(function(){
+        $.ajax({
+            url: api + 'import',
+            type: 'POST',
+            contentType: false,
+            data: JSON.stringify(JSON.parse($('#import-data').val())),
+            dataType: 'json',
+            success: function(msg){
+                alert("Успех");
+                console.log(msg);
+            }
+        });
+    });
+
+    $("#export").click(function(){
+        window.open(api + "search", '_blank');
     });
 
     $("#search-button").click(function(){
@@ -27,9 +46,8 @@ $(function() {
         $.get(api + "papers/get?title=" + encodeURIComponent(query), function(data){
             $(".lds-spinner").css("visibility", "hidden");
 
-            $("#search-results").html('<div class="result" data-title="' + data["title"] + '" data-topic="' + data['research_field'] + '">' +
+            $("#search-results").html('<div class="result" data-title="' + data["title"] + '" data-topic="' + data['research_field'] + '" data-year="' + data["year"] + '">' +
                 '<h2>' + data["title"] + '</h2>' +
-                '<p>' + (data['discr'] || '') + '</p>' +
                 '<span><b>Журнал: </b>' + data['journal_name'] + '</span>' +
                 '<span><b>Тема: </b>' + data['research_field'] + '</span>' +
                 '<span><b>Год: </b>' + data['year'] + '</span>' +
@@ -42,7 +60,25 @@ $(function() {
                 $(".screen").hide();
                 $("#graph").fadeIn(300);
 
-                renderTopicGraph($(this).data("title"), $(this).data("topic"));
+                const title = $(this).data("title"),
+                    topic = $(this).data("topic"),
+                    year = $(this).data("year");
+
+                $.get(api + "search?paper_title=" + title, function(list){
+                    const depPapers = [];
+
+                    list.forEach(paper => {
+                        paper["references"].forEach(ref => {
+                            const currPaper = ref["target_paper_title"];
+
+                            if(depPapers.indexOf(currPaper) === -1){
+                                depPapers.push(currPaper);
+                            }
+                        });
+                    });
+
+                    renderTopicGraph(title, topic, year, depPapers);
+                });
 
                 $.get(api + "research_fields/list", function(list){
                     $("#options select[name='theme'] option:not([disabled])").remove();
@@ -58,44 +94,40 @@ $(function() {
     $("#get-loops").click(function(){
         $(".screen").hide();
         $("#loops").fadeIn(300);
+
+        $("#loops-area").empty()
         $(".lds-spinner").css("visibility", "visible");
 
-        $.get(api + "find_reference_cycles", function(list){
-
-            $("#loops .loops").empty();
-            $(".lds-spinner").css("visibility", "hidden");
-
-            list.papers.forEach((paper, i) => {
-                $("#loops .loops").append('<div class="loop" data-num="' + i + '"></div>');
-
-                paper.forEach((elem, j) => {
-                    $(".loop[data-num='" + i + "']").append('<div class="paper"><h2>' + elem['paper_title'] + '</h2><span>' + elem['author_name'] + '</span></div>');
-
-                    if(paper.length !== j+1){
-                        $(".loop[data-num='" + i + "']").append('<img class="arrow" src="img/arrow.png" />');
-                    }
-                });
-            });
-        });
+        $.get(api + "search", renderMainGraph);
     });
 });
 
-function renderTopicGraph(paper, topic) {
+function renderTopicGraph(paper, topic, year, list) {
     
     $("#graph-area").empty();
 
     const nodesData = [
-        //Статьи
-        { id: 1, label: paper, shape: 'dot', color: 'rgb(59, 75, 252)', size: 20, type: 'paper' },
+        //Статя
+        { id: 1, label: paper, shape: 'star', color: 'rgb(59, 75, 252)', size: 20, type: 'paper' },
         
-        //Темы
+        //Тема
         { id: 2, label: topic, shape: 'dot', color: 'rgb(205, 162, 190)', size: 50, type: 'topic' },
+
+        //Год
+        { id: 3, label: year + '', shape: 'dot', color: 'yellow', size: 10, type: 'year' },
     ];
 
     const edgesData = [
-        { from: 1, to: 2, color: 'red', arrows:'to' },
-        { from: 2, to: 1, color: 'rgb(55, 255, 65)', arrows:'to', dashes: true }
+        { from: 2, to: 1, color: 'red', arrows:'to' },
+        { from: 3, to: 1, color: 'rgb(55, 255, 65)', arrows:'to' }
     ];
+
+    list.forEach((paper, i) => {
+        const id = nodesData.length + i + 1;
+
+        nodesData.push({ id: id, label: paper, shape: 'dot', color: 'rgb(59, 75, 252)', size: 20, type: 'paper' });
+        edgesData.push({ from: id, to: 1, color: 'blue', arrows:'to' });
+    });
 
     const nodes = new vis.DataSet(nodesData);
     const edges = new vis.DataSet(edgesData);
@@ -123,45 +155,52 @@ function renderTopicGraph(paper, topic) {
             const currPapers = nodesData.filter(n => {
                 return clickedNodes.find(s => (s.id == n.id && n.type === 'paper')) !== undefined;
             });
+			
+			const currTopics = nodesData.filter(n => {
+                return clickedNodes.find(s => (s.id == n.id && n.type === 'topic')) !== undefined;
+            });
+			
 
-            if(currPapers.length){
-                $.get(api + "references/get?paper_title=" + currPapers[0].label, renderPapersGraph);
-            }
+            if(currPapers.length) {
+                $.get(api + "search?paper_title=" + currPapers[0].label, renderPapersGraph);
+            } else if (currTopics.length) {
+				$.get(api + "search?research_field=" + currTopics[0].label, renderPapersGraph);
+			}
         }
     });
 }
 
 function renderPapersGraph(list) {
 
-    $("#graph-area").empty();
+    $("#loops").empty();
 
     const nodesData = [];
     const edgesData = [];
 
-    list.forEach(d => {
-        const from = d['source_paper_title'];
-        const to = d['target_paper_title'];
+    list.forEach(l => {
+		l.references.forEach(d => {
+			const from = d['source_paper_title'];
+			const to = d['target_paper_title'];
 
-        let fromIndex = nodesData.findIndex(n => n.label === from);
+			let fromIndex = nodesData.findIndex(n => n.label === from);
 
-        if (fromIndex == -1){
-            nodesData.push({ id: nodesData.length, label: from, shape: 'dot', size: 30, color: '#97C2FC' });
-            fromIndex = nodesData.length - 1;
-        }
+			if (fromIndex == -1){
+				nodesData.push({ id: nodesData.length, label: from, shape: 'dot', size: 30, color: '#97C2FC' });
+				fromIndex = nodesData.length - 1;
+			}
 
-        let toIndex = nodesData.findIndex(n => n.label === to);
+			let toIndex = nodesData.findIndex(n => n.label === to);
 
-        if (toIndex == -1){
-            nodesData.push({ id: nodesData.length, label: to, shape: 'dot', size: 30, color: '#97C2FC' });
-            toIndex = nodesData.length - 1;
-        }
+			if (toIndex == -1){
+				nodesData.push({ id: nodesData.length, label: to, shape: 'dot', size: 30, color: '#97C2FC' });
+				toIndex = nodesData.length - 1;
+			}
 
-        if (edgesData.findIndex(e => e.from == fromIndex && e.to == toIndex) == -1 ){
-            edgesData.push({ from: fromIndex, to: toIndex, color:{color:'red'}, arrows:'to' }, { from: toIndex, to: fromIndex, color:{color:'green'}, arrows:'to' });
-        }
-    });
-
-    console.table(edgesData);
+			if (edgesData.findIndex(e => e.from == fromIndex && e.to == toIndex) == -1 ){
+				edgesData.push({ from: fromIndex, to: toIndex, color:{color:'red'}, arrows:'to' });
+			}
+		});
+	});
 
     const nodes = new vis.DataSet(nodesData);
     const edges = new vis.DataSet(edgesData);
@@ -181,4 +220,120 @@ function renderPapersGraph(list) {
     };
     const network = new vis.Network(container, data, options);
 
+}
+
+function renderMainGraph(list) {
+    $(".lds-spinner").css("visibility", "hidden");
+    $("#loops-area").show();
+
+    const nodesData = [];
+    const edgesData = [];
+
+    let num = 1;
+    list.forEach((paper, i) => {
+        const title = paper["title"],
+            journal = paper["journal_name"],
+            year = '' + paper["year"],
+            topic = paper["research_field"];
+			
+		const authors = (paper["authors"] || []).map(a => a.name).join(", ");
+
+        let index = nodesData.findIndex(n => n.label === title && n.type === 'paper');
+        if(index === -1) {
+            index = num + i;
+
+            nodesData.push({ id: index, label: title, title: '<b>Авторы:</b> ' + authors, shape: 'dot', color: 'rgb(59, 75, 252)', size: 20, type: 'paper' });
+        }
+
+        const jIndex = nodesData.findIndex(n => n.label === journal && n.type === 'journal');
+        if(jIndex === -1) {
+            num++;
+
+            nodesData.push({ id: num+i, label: journal, shape: 'dot', color: 'yellow', size: 20, type: 'journal' });
+            edgesData.push({ from: index, to: num+i, color: {color: 'green'}, arrows:'to' });
+        } else {
+            edgesData.push({ from: index, to: nodesData[jIndex].id, color: {color: 'green'}, arrows:'to' });
+        }
+
+        const yIndex = nodesData.findIndex(n => n.label === year && n.type === 'year');
+        if(yIndex === -1) {
+            num++;
+
+            nodesData.push({ id: num+i, label: year, shape: 'dot', color: '#8d00ff', size: 20, type: 'year' });
+            edgesData.push({ from: index, to: num+i, color: {color: 'red'}, arrows:'to' });
+        } else {
+            edgesData.push({ from: index, to: nodesData[yIndex].id, color: {color: 'red'}, arrows:'to' });
+        }
+
+        const tIndex = nodesData.findIndex(n => n.label === topic && n.type === 'topic');
+        if(tIndex === -1) {
+            num++;
+
+            nodesData.push({ id: num+i, label: topic, shape: 'dot', color: 'orange', size: 20, type: 'topic' });
+            edgesData.push({ from: index, to: num+i, color: {color: 'orange'}, arrows:'to' });
+        } else {
+            edgesData.push({ from: index, to: nodesData[tIndex].id, color: {color: 'orange'}, arrows:'to' });
+        }
+
+        num++;
+    });
+
+    list.forEach((paper) => {
+        const from = nodesData.find(n => n.label === paper.title);
+
+        if(from) {
+            paper.references.forEach(ref => {
+                const to = nodesData.find(n => n.label === ref["target_paper_title"]);
+
+                if(to){
+                    edgesData.push({ from: from.id, to: to.id, color: {color: 'black'}, arrows:'to' });
+                } else {
+                    const index = nodesData.length + 1;
+
+                    nodesData.push({ id: index, label: ref["target_paper_title"], shape: 'dot', color: 'rgb(59, 75, 252)', size: 20 });
+                    edgesData.push({ from: from.id, to: index, color: {color: 'black'}, arrows:'to' });
+                }
+            });
+        }
+    });
+
+    const nodes = new vis.DataSet(nodesData);
+    const edges = new vis.DataSet(edgesData);
+
+    const container = document.getElementById('loops-area');
+    const data = {
+        nodes: nodes,
+        edges: edges
+    };
+    const options = {
+        physics: false,
+        interaction: {
+            dragNodes: true,// do not allow dragging nodes
+            zoomView: true, // do not allow zooming
+            dragView: true  // do not allow dragging
+        }
+    };
+    const network = new vis.Network(container, data, options);
+
+    network.on('click', function(properties) {
+        const ids = properties.nodes;
+        const clickedNodes = nodes.get(ids);
+
+        if (clickedNodes.length) {
+            const currPapers = nodesData.filter(n => {
+                return clickedNodes.find(s => (s.id == n.id && n.type === 'paper')) !== undefined;
+            });
+			
+			const currTopics = nodesData.filter(n => {
+                return clickedNodes.find(s => (s.id == n.id && n.type === 'topic')) !== undefined;
+            });
+			
+
+            if(currPapers.length) {
+                $.get(api + "search?paper_title=" + currPapers[0].label, renderMainGraph);
+            } else if (currTopics.length) {
+				$.get(api + "search?research_field=" + currTopics[0].label, renderMainGraph);
+			}
+        }
+    });
 }
