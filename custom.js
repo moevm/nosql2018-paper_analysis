@@ -1,23 +1,6 @@
 const api = "http://172.18.14.33:8888/graph/";
 
 $(function() {
-    $("#input-file").change(function () {
-        let fd = new FormData;
-
-        fd.append('json', $(this).prop('files')[0]);
-
-        $.ajax({
-            url: api + 'import',
-            data: fd,
-            processData: false,
-            contentType: false,
-            type: 'POST',
-            success: function () {
-                alert("База импортирована");
-            }
-        });
-    });
-
     $("[data-back]").click(function(){
         const backElem = $(this).data("back");
 
@@ -42,6 +25,10 @@ $(function() {
                 console.log(msg);
             }
         });
+    });
+
+    $("#export").click(function(){
+        window.open(api + "search", '_blank');
     });
 
     $("#search-button").click(function(){
@@ -253,7 +240,7 @@ function renderMainGraph(list) {
         if(index === -1) {
             index = num + i;
 
-            nodesData.push({ id: index, label: title, title: '<b>Тема:</b> ' + topic, shape: 'dot', color: 'rgb(59, 75, 252)', size: 20, type: 'paper' });
+            nodesData.push({ id: index, label: title, title: '<b>Автор:</b> ' + paper.author.name, shape: 'dot', color: 'rgb(59, 75, 252)', size: 20, type: 'paper' });
         }
 
         const jIndex = nodesData.findIndex(n => n.label === journal && n.type === 'journal');
@@ -276,17 +263,36 @@ function renderMainGraph(list) {
             edgesData.push({ from: index, to: nodesData[yIndex].id, color: {color: 'red'}, arrows:'to' });
         }
 
+        const tIndex = nodesData.findIndex(n => n.label === topic && n.type === 'topic');
+        if(tIndex === -1) {
+            num++;
+
+            nodesData.push({ id: num+i, label: topic, shape: 'dot', color: 'orange', size: 20, type: 'topic' });
+            edgesData.push({ from: index, to: num+i, color: {color: 'orange'}, arrows:'to' });
+        } else {
+            edgesData.push({ from: index, to: nodesData[tIndex].id, color: {color: 'orange'}, arrows:'to' });
+        }
+
         num++;
     });
 
     list.forEach((paper) => {
-        const from = nodesData.find(n => n.label === paper.title).id;
+        const from = nodesData.find(n => n.label === paper.title);
 
-        paper.references.forEach(ref => {
-            const to = nodesData.find(n => n.label === ref["target_paper_title"]).id;
+        if(from) {
+            paper.references.forEach(ref => {
+                const to = nodesData.find(n => n.label === ref["target_paper_title"]);
 
-            edgesData.push({ from, to, color: {color: 'black'}, arrows:'to' });
-        });
+                if(to){
+                    edgesData.push({ from: from.id, to: to.id, color: {color: 'black'}, arrows:'to' });
+                } else {
+                    const index = nodesData.length + 1;
+
+                    nodesData.push({ id: index, label: ref["target_paper_title"], shape: 'dot', color: 'rgb(59, 75, 252)', size: 20 });
+                    edgesData.push({ from: from.id, to: index, color: {color: 'black'}, arrows:'to' });
+                }
+            });
+        }
     });
 
     const nodes = new vis.DataSet(nodesData);
@@ -307,4 +313,25 @@ function renderMainGraph(list) {
     };
     const network = new vis.Network(container, data, options);
 
+    network.on('click', function(properties) {
+        const ids = properties.nodes;
+        const clickedNodes = nodes.get(ids);
+
+        if (clickedNodes.length) {
+            const currPapers = nodesData.filter(n => {
+                return clickedNodes.find(s => (s.id == n.id && n.type === 'paper')) !== undefined;
+            });
+			
+			const currTopics = nodesData.filter(n => {
+                return clickedNodes.find(s => (s.id == n.id && n.type === 'topic')) !== undefined;
+            });
+			
+
+            if(currPapers.length) {
+                $.get(api + "search?paper_title=" + currPapers[0].label, renderMainGraph);
+            } else if (currTopics.length) {
+				$.get(api + "search?research_field=" + currTopics[0].label, renderMainGraph);
+			}
+        }
+    });
 }
