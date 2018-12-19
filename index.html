@@ -27,14 +27,24 @@
             <h1>Анализ научных статей</h1>
 
             <div id="main-buttons">
-                <input name="file" type="file" id="input-file">
                 <button id="input-file-button">Импорт базы данных</button>
 
                 <button id="search-button">Поиск базе данных</button>
 
-                <button id="get-loops">Циклы</button>
+                <button id="get-loops">Супер-граф</button>
+
+                <button id="export">Экспорт графа</button>
             </div>
         </div>
+    </div>
+
+    <div class="screen" id="import">
+        <div id="import-area">
+            <h1><i class="fas fa-chevron-left" data-back="main"></i> Импорт</h1>
+        </div>
+        
+        <textarea id="import-data"></textarea>
+        <button id="do-import">Импортировать</button>
     </div>
 
     <div class="screen" id="search">
@@ -51,14 +61,14 @@
     <div class="screen" id="loops">
         <h1><i class="fas fa-chevron-left" data-back="main"></i> Циклы</h1>
 
-        <div class="loops"></div>
+        <div class="loops" id="loops-area"></div>
         <div class="lds-spinner"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
     </div>
 
     <div class="screen" id="graph">
         <h1><i class="fas fa-chevron-left" data-back="search"></i> Граф цитирования</h1>
 
-        <div id="options">
+        <!--<div id="options">
             <input type="checkbox" name="slef">
             <span id="self">Самоцетирование</span>
 
@@ -71,7 +81,7 @@
             </select>
 
             <button id="graph-export">Экспорт</button>
-        </div>
+        </div>-->
 
         <div id="graph-area"></div>
         <div style="clear: both"></div>
