@@ -8,7 +8,6 @@ package main
   import com.twitter.util.{Future, Return, Throw}
   import dao.{PaperGraphDao, PaperGraphDaoImpl}
   import main.Requests._
-  import services.GraphService._
   import services.{GraphService, GraphServiceImpl}
 
 object FinatraMain extends FinatraServer {
@@ -51,13 +50,14 @@ class MainController extends Controller {
           request.paperTitle,
           request.researchField,
           request.journalName,
-          request.year
+          request.year,
+          request.isWithSelfCitation
         )
     }
     get("/find_reference_cycles") {
-      _: Request =>
+      req: FindCyclesRequest =>
         graphService
-          .findReferenceCycles()
+          .findReferenceCycles(req.isWithSelfCitation)
           .map { papersCycle => FindReferenceCyclesResponse(papersCycle) }
     }
 
@@ -104,6 +104,8 @@ class MainController extends Controller {
   object Requests {
     import GraphService._
 
+    case class FindCyclesRequest(@QueryParam isWithSelfCitation: Boolean)
+
     case class CreateAuthorRequest(@QueryParam name: String)
 
     case class CreatePaperRequest(@QueryParam
@@ -136,7 +138,9 @@ class MainController extends Controller {
                              @QueryParam
                              journalName: Option[String],
                              @QueryParam
-                             year: Option[Int])
+                             year: Option[Int],
+                             @QueryParam
+                             isWithSelfCitation: Boolean)
 
     case class FindReferenceCyclesResponse(papers: List[List[LoopEntity]])
 
@@ -144,7 +148,7 @@ class MainController extends Controller {
 
     case class Reference(sourcePaperTitle: String, targetPaperTitle: String)
 
-    case class PaperSearchResult(authors: Seq[Author], title: String, journalName: String, researchField: String, year: Int, link: String, references: Seq[Reference])
+    case class PaperSearchResult(authors: Set[Author], title: String, journalName: String, researchField: String, year: Int, link: String, references: Set[Reference])
 
     case class PaperImportRequest(importPapers: Seq[PaperSearchResult])
   }

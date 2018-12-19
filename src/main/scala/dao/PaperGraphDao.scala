@@ -20,13 +20,25 @@ trait PaperGraphDao {
   def getPaper(paperTitle: String): Future[Paper]
   def getResearchFields(): Future[List[String]]
 
-  def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String], journalName: Option[String], year: Option[Int]): Future[List[SearchRowResult]]
+  def search(authorName: Option[String],
+             paperTitle: Option[String],
+             researchField: Option[String],
+             journalName: Option[String],
+             year: Option[Int],
+             isWithSelfCitation: Boolean): Future[List[SearchRowResult]]
   def importGraph(authors: Seq[(Author, Paper)], papers: Seq[Paper], references: Seq[Reference]): Future[Unit]
   def findReferenceCycles(): Future[List[Loop]]
 }
 
 class PaperGraphDaoImpl extends PaperGraphDao {
   import PaperGraphDao._
+
+  //Shitty Neo4j driver... will never use it again
+  implicit def convertScalaFuncToNeo4jFunc[A, B](f: A => B) = {
+    new org.neo4j.driver.v1.util.Function[A, B] {
+      override def apply(t: A): B = f.apply(t)
+    }
+  }
 
   def findReferenceCycles(): Future[List[Loop]] = {
     doQuery[List[Loop]] { tx =>
@@ -44,18 +56,19 @@ class PaperGraphDaoImpl extends PaperGraphDao {
 
       val aaa = new org.neo4j.driver.v1.util.Function[Record, List[LoopEntity]] {
         override def apply(record: Record): List[LoopEntity] = {
-          val abc = record
-            .values()
-            .get(0)
-            .asList(_.asList(z => mapToLoopEntity(z.asMap(_.asString()).asScala.toMap)).asScala.toList)
+          val abc = record.values().get(0)
           if (abc.isEmpty) {
-            ???
+            List.empty[LoopEntity]
           } else {
-            abc.get(0)
+            val ohlol = { abc: Value =>
+              val convert = (z: Value) => mapToLoopEntity(z.asMap(_.asString()).asScala.toMap)
+              abc.asList(convert).asScala.toList
+            }
+            abc.asList(ohlol).get(0)
           }
         }
       }
-      result.list(aaa).asScala.toList
+      result.list(aaa).asScala.toList.filter(_.nonEmpty)
     }
   }
 
@@ -164,7 +177,12 @@ class PaperGraphDaoImpl extends PaperGraphDao {
     }
   }
 
-  override def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String], journalName: Option[String], year: Option[Int]): Future[List[SearchRowResult]] = {
+  override def search(authorName: Option[String],
+                      paperTitle: Option[String],
+                      researchField: Option[String],
+                      journalName: Option[String],
+                      year: Option[Int],
+                      isWithSelfCitation: Boolean): Future[List[SearchRowResult]] = {
     val buildPaperQuery =
       Seq(
         paperTitle.map(x => s"title: '$x'"),
@@ -174,9 +192,11 @@ class PaperGraphDaoImpl extends PaperGraphDao {
       ).flatten.mkString(", ")
     doQuery {
       _.run(
-        ("""MATCH (p1: Paper {""" + buildPaperQuery + """ } )-[x:REFERENCES]->(p2),
-           |      (a: Author { """ + authorName.map(x => s"name: '$x'").getOrElse("") + """ } )-[:WROTE]->(p1)
-           |RETURN a as author, p1 as paper, p1.title as source, p2.title as target
+        (s"""MATCH (p1: Paper {""" + buildPaperQuery + """ } )-[x:REFERENCES]->(p2),
+           |       (a1: Author { """ + authorName.map(x => s"name: '$x'").getOrElse("") + s""" } )-[:WROTE]->(p1)
+           |
+           |${if (isWithSelfCitation) "" else "WHERE NOT (a1)-[:WROTE]->(p2)"}
+           |RETURN a1 as author, p1 as paper, p1.title as source, p2.title as target
            |UNION
            |MATCH (p: Paper {""" + buildPaperQuery + """ } ), (a: Author { """ + authorName.map(x => s"name: '$x'").getOrElse("") + """ })
            |WHERE (a: Author)-[:WROTE]->(p)
@@ -206,33 +226,51 @@ class PaperGraphDaoImpl extends PaperGraphDao {
   }
 
   override def importGraph(authors: Seq[(Author, Paper)], papers: Seq[Paper], references: Seq[Reference]): Future[Unit] = {
-    val buildCreatePapersQuery = papers.map {
-      p => s"MERGE (:Paper { link: '${p.link}', journal_name: '${p.journalName}', title: '${p.title}', year: ${p.year}, research_field: '${p.researchField}'})"
-    }.mkString("\nWITH 1 as dummy\n")
+    val buildCreateAuthorsQuery =
+      authors
+        .map(_._1.name)
+        .toSet[String]
+        .map {
+          name => s"MERGE (:Author { name: '$name' })"
+        }
+        .mkString("\nWITH 1 as dummy\n")
 
-    val buildCreateAuthorsQuery = authors.map {
-      case (a, _) => s"MERGE (:Author { name: '${a.name}' })"
-    }.mkString("\nWITH 1 as dummy\n")
+    val buildCreatePapersQuery =
+      papers
+        .map {
+          p => s"MERGE (:Paper { link: '${p.link}', journal_name: '${p.journalName}', title: '${p.title}', year: ${p.year}, research_field: '${p.researchField}'})"
+        }
+        .mkString("\nWITH 1 as dummy\n")
 
-    val buildCreateWroteQuery = authors.map {
-      case (a, p) =>
-        s"""MATCH (a:Author),(p:Paper)
-           |WHERE a.name = '${a.name}'
-           |AND p.title = '${p.title}'
-           |MERGE (a)-[:WROTE]->(p)""".stripMargin
-    }.mkString("\nWITH 1 as dummy\n")
+    val buildCreateWroteQuery =
+      authors
+        .map {
+          case (a, p) =>
+            s"""MATCH (a:Author),(p:Paper)
+               |WHERE a.name = '${a.name}'
+               |AND p.title = '${p.title}'
+               |MERGE (a)-[:WROTE]->(p)""".stripMargin
+        }
+        .mkString("\nWITH 1 as dummy\n")
 
-    val buildCreateReferencesQuery = references.map {
-      case Reference(src, tgt) =>
-        s"""MATCH (p1:Paper),(p2:Paper)
-           |WHERE p1.title = '$src'
-           |AND p2.title = '$tgt'
-           |MERGE (p1)-[:REFERENCES]->(p2)""".stripMargin
-    }.mkString("\nWITH 1 as dummy\n")
+    val buildCreateReferencesQuery =
+      references
+        .map {
+          case Reference(src, tgt) =>
+            s"""MATCH (p1:Paper),(p2:Paper)
+               |WHERE p1.title = '$src'
+               |AND p2.title = '$tgt'
+               |MERGE (p1)-[:REFERENCES]->(p2)""".stripMargin
+        }
+        .mkString("\nWITH 1 as dummy\n")
 
     val query =
-      Seq(buildCreatePapersQuery, buildCreateAuthorsQuery, buildCreateWroteQuery, buildCreateReferencesQuery)
-        .mkString("\nWITH 1 as dummy\n")
+      Seq(
+        buildCreateAuthorsQuery,
+        buildCreatePapersQuery,
+        buildCreateWroteQuery,
+        buildCreateReferencesQuery
+      ).mkString("\nWITH 1 as dummy\n")
 
     doQuery {
       _.run(query)

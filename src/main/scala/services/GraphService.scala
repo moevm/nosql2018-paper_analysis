@@ -16,11 +16,11 @@ trait GraphService {
 
   def getResearchFields(): Future[List[String]]
 
-  def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String], journalName: Option[String], year: Option[Int]): Future[Seq[PaperSearchResult]]
+  def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String], journalName: Option[String], year: Option[Int], isWithSelfCitation: Boolean): Future[Seq[PaperSearchResult]]
 
   def importGraph(data: PaperImportRequest): Future[Unit]
 
-  def findReferenceCycles(): Future[List[Loop]]
+  def findReferenceCycles(isWithSelfCitation: Boolean): Future[List[Loop]]
 }
 
 class GraphServiceImpl(dao: PaperGraphDao) extends GraphService {
@@ -42,26 +42,35 @@ class GraphServiceImpl(dao: PaperGraphDao) extends GraphService {
     dao.getPaper(paperTitle)
   }
 
-  def findReferenceCycles(): Future[List[Loop]] = {
-    dao.findReferenceCycles()
+  def findReferenceCycles(isWithSelfCitation: Boolean): Future[List[Loop]] = {
+    dao.findReferenceCycles().map {
+      cycles =>
+      if (isWithSelfCitation) {
+        cycles
+      } else {
+        cycles.filter(!_.sliding(2).exists(x => x.head.author_name == x.last.author_name))
+      }
+    }
   }
 
   def getResearchFields(): Future[List[String]] = {
     dao.getResearchFields()
   }
 
-  def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String], journalName: Option[String], year: Option[Int]): Future[Seq[PaperSearchResult]] = {
-    dao.search(authorName, paperTitle, researchField, journalName, year).map {
+  def search(authorName: Option[String], paperTitle: Option[String], researchField: Option[String], journalName: Option[String], year: Option[Int], isWithSelfCitation: Boolean): Future[Seq[PaperSearchResult]] = {
+    dao
+      .search(authorName, paperTitle, researchField, journalName, year, isWithSelfCitation)
+      .map {
       _.groupBy(_.paper).map {
         case (p, resultList) =>
           PaperSearchResult(
-            resultList.map(_.author),
+            resultList.map(_.author).toSet,
             p.title,
             p.journalName,
             p.researchField,
             p.year,
             p.link,
-            resultList.flatMap(_.reference)
+            resultList.flatMap(_.reference).toSet
           )
       }.toList
     }
