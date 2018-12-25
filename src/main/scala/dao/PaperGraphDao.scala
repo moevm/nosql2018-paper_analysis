@@ -33,7 +33,7 @@ trait PaperGraphDao {
 class PaperGraphDaoImpl extends PaperGraphDao {
   import PaperGraphDao._
 
-  //Shitty Neo4j driver... will never use it again
+  //Shitty Neo4j driver... I'll never use it again
   implicit def convertScalaFuncToNeo4jFunc[A, B](f: A => B) = {
     new org.neo4j.driver.v1.util.Function[A, B] {
       override def apply(t: A): B = f.apply(t)

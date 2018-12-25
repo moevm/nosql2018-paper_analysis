@@ -1,6 +1,8 @@
 package main
 
   import com.twitter.finagle.http.Request
+  import com.twitter.finagle.http.filter.Cors
+  import com.twitter.finagle.http.filter.Cors.HttpFilter
   import com.twitter.finatra.http.response.ResponseBuilder
   import com.twitter.finatra.http.routing.HttpRouter
   import com.twitter.finatra.http.{Controller, HttpServer}
@@ -17,7 +19,9 @@ object FinatraMain extends FinatraServer {
 
 class FinatraServer extends HttpServer {
   override def configureHttp(router: HttpRouter): Unit = {
-    router.add(new MainController)
+    router
+      .filter(new HttpFilter(Cors.UnsafePermissivePolicy))
+      .add(new MainController)
   }
 }
 
@@ -39,7 +43,7 @@ class MainController extends Controller {
   }
 
   prefix("/graph") {
-    post("/import") {
+    options("/import") {
       request: PaperImportRequest =>
         graphService.importGraph(request)
     }
