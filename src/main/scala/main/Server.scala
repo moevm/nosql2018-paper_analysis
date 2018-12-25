@@ -21,6 +21,7 @@ class FinatraServer extends HttpServer {
   override def configureHttp(router: HttpRouter): Unit = {
     router
       .filter(new HttpFilter(Cors.UnsafePermissivePolicy))
+      .add(new CorsController)
       .add(new MainController)
   }
 }
@@ -43,7 +44,7 @@ class MainController extends Controller {
   }
 
   prefix("/graph") {
-    options("/import") {
+    post("/import") {
       request: PaperImportRequest =>
         graphService.importGraph(request)
     }
@@ -101,6 +102,14 @@ class MainController extends Controller {
             .createWroteRelation(request.name, request.title)
             .toTextStatusResponse
       }
+    }
+  }
+}
+
+class CorsController extends Controller {
+  prefix("/graph") {
+    options("/import") {
+      _: Request => response.ok
     }
   }
 }
