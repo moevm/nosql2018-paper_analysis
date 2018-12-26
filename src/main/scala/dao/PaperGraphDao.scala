@@ -270,7 +270,7 @@ class PaperGraphDaoImpl extends PaperGraphDao {
         buildCreatePapersQuery,
         buildCreateWroteQuery,
         buildCreateReferencesQuery
-      ).mkString("\nWITH 1 as dummy\n")
+      ).filter(_.nonEmpty).mkString("\nWITH 1 as dummy\n")
 
     doQuery {
       _.run(query)
