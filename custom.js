@@ -17,8 +17,8 @@ $(function() {
         $.ajax({
             url: api + 'import',
             type: 'POST',
-            contentType: false,
             data: JSON.stringify(JSON.parse($('#import-data').val())),
+            contentType: "application/json; charset=utf-8",
             dataType: 'json',
             success: function(msg){
                 alert("Успех");
@@ -27,8 +27,29 @@ $(function() {
         });
     });
 
+    $("#get-refs").click(function(){
+        $(".screen").hide();
+        $("#refs").fadeIn(300);
+
+        $("#refs-area").empty();
+        $(".lds-spinner").css("visibility", "visible");
+        
+        const selfQuote = $("#refs #self-refs").is(":checked") ? "true" : "false";
+
+        $.get(api + "find_reference_cycles?is_with_self_citation=" + selfQuote, renderRefs);
+    });
+
+    $("#refs #self-refs").change(function(){
+        $("#refs-area").empty();
+        $(".lds-spinner").css("visibility", "visible");
+        
+        const selfQuote = $(this).is(":checked") ? "true" : "false";
+
+        $.get(api + "find_reference_cycles?is_with_self_citation=" + selfQuote, renderRefs);
+    });
+
     $("#export").click(function(){
-        window.open(api + "search", '_blank');
+        window.open(api + "search?is_with_self_citation=true", '_blank');
     });
 
     $("#search-button").click(function(){
@@ -95,12 +116,35 @@ $(function() {
         $(".screen").hide();
         $("#loops").fadeIn(300);
 
-        $("#loops-area").empty()
+        $("#loops-area").empty();
         $(".lds-spinner").css("visibility", "visible");
 
-        $.get(api + "search", renderMainGraph);
+        const selfQuote = $("#loops #self-loops").is(":checked") ? "true" : "false";
+
+        $.get(api + "search?is_with_self_citation=" + selfQuote, renderMainGraph);
+    });
+
+    $("#loops #self-loops").change(function(){
+        $("#loops-area").empty();
+        $(".lds-spinner").css("visibility", "visible");
+
+        const selfQuote = $(this).is(":checked") ? "true" : "false";
+
+        $.get(api + "search?is_with_self_citation=" + selfQuote, renderMainGraph)
     });
 });
+
+function renderRefs(data) {
+    $(".lds-spinner").css("visibility", "hidden");
+
+    data.papers.forEach((ref, i) => {
+        $("#refs-area").append('<div class="ref" data-num="'+i+'"></div>');
+
+        ref.forEach((paper, j, arr) => {
+            $(".ref[data-num='" + i + "']").append("<span class='paper'><b>" + paper.author_name + "</b>: " + paper.paper_title + (j + 1 < arr.length ? " => " : "") + "</span>");
+        });
+    });
+}
 
 function renderTopicGraph(paper, topic, year, list) {
     
@@ -230,7 +274,7 @@ function renderMainGraph(list) {
     const edgesData = [];
 
     let num = 1;
-    list.forEach((paper, i) => {
+    list.forEach(paper => {
         const title = paper["title"],
             journal = paper["journal_name"],
             year = '' + paper["year"],
@@ -240,7 +284,7 @@ function renderMainGraph(list) {
 
         let index = nodesData.findIndex(n => n.label === title && n.type === 'paper');
         if(index === -1) {
-            index = num + i;
+            index = num;
 
             nodesData.push({ id: index, label: title, title: '<b>Авторы:</b> ' + authors, shape: 'dot', color: 'rgb(59, 75, 252)', size: 20, type: 'paper' });
         }
@@ -249,8 +293,8 @@ function renderMainGraph(list) {
         if(jIndex === -1) {
             num++;
 
-            nodesData.push({ id: num+i, label: journal, shape: 'dot', color: 'yellow', size: 20, type: 'journal' });
-            edgesData.push({ from: index, to: num+i, color: {color: 'green'}, arrows:'to' });
+            nodesData.push({ id: num, label: journal, shape: 'dot', color: 'yellow', size: 20, type: 'journal' });
+            edgesData.push({ from: index, to: num, color: {color: 'green'}, arrows:'to' });
         } else {
             edgesData.push({ from: index, to: nodesData[jIndex].id, color: {color: 'green'}, arrows:'to' });
         }
@@ -259,8 +303,8 @@ function renderMainGraph(list) {
         if(yIndex === -1) {
             num++;
 
-            nodesData.push({ id: num+i, label: year, shape: 'dot', color: '#8d00ff', size: 20, type: 'year' });
-            edgesData.push({ from: index, to: num+i, color: {color: 'red'}, arrows:'to' });
+            nodesData.push({ id: num, label: year, shape: 'dot', color: '#8d00ff', size: 20, type: 'year' });
+            edgesData.push({ from: index, to: num, color: {color: 'red'}, arrows:'to' });
         } else {
             edgesData.push({ from: index, to: nodesData[yIndex].id, color: {color: 'red'}, arrows:'to' });
         }
@@ -269,8 +313,8 @@ function renderMainGraph(list) {
         if(tIndex === -1) {
             num++;
 
-            nodesData.push({ id: num+i, label: topic, shape: 'dot', color: 'orange', size: 20, type: 'topic' });
-            edgesData.push({ from: index, to: num+i, color: {color: 'orange'}, arrows:'to' });
+            nodesData.push({ id: num, label: topic, shape: 'dot', color: 'orange', size: 20, type: 'topic' });
+            edgesData.push({ from: index, to: num, color: {color: 'orange'}, arrows:'to' });
         } else {
             edgesData.push({ from: index, to: nodesData[tIndex].id, color: {color: 'orange'}, arrows:'to' });
         }
@@ -330,9 +374,9 @@ function renderMainGraph(list) {
 			
 
             if(currPapers.length) {
-                $.get(api + "search?paper_title=" + currPapers[0].label, renderMainGraph);
+                $.get(api + "search?paper_title=" + currPapers[0].label + "&is_with_self_citation=" + ($("#loops #self-loops").is(":checked") ? "true" : "false"), renderMainGraph);
             } else if (currTopics.length) {
-				$.get(api + "search?research_field=" + currTopics[0].label, renderMainGraph);
+				$.get(api + "search?research_field=" + currTopics[0].label + "&is_with_self_citation=" + ($("#loops #self-loops").is(":checked") ? "true" : "false"), renderMainGraph);
 			}
         }
     });

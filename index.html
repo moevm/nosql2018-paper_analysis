@@ -33,6 +33,8 @@
 
                 <button id="get-loops">Супер-граф</button>
 
+                <button id="get-refs">Циклы</button>
+
                 <button id="export">Экспорт графа</button>
             </div>
         </div>
@@ -58,8 +60,15 @@
         <div class="lds-spinner"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
     </div>
 
+    <div class="screen" id="refs">
+        <h1><i class="fas fa-chevron-left" data-back="main"></i> Циклы <span><input type="checkbox" name="selfquote" id="self-refs"> Самоцетирование</span></h1>
+
+        <div id="refs-area"></div>
+        <div class="lds-spinner"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+    </div>
+
     <div class="screen" id="loops">
-        <h1><i class="fas fa-chevron-left" data-back="main"></i> Циклы</h1>
+        <h1><i class="fas fa-chevron-left" data-back="main"></i> Супер-граф <span><input type="checkbox" name="selfquote" id="self-loops"> Самоцетирование</span></h1>
 
         <div class="loops" id="loops-area"></div>
         <div class="lds-spinner"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
@@ -67,21 +76,6 @@
 
     <div class="screen" id="graph">
         <h1><i class="fas fa-chevron-left" data-back="search"></i> Граф цитирования</h1>
-
-        <!--<div id="options">
-            <input type="checkbox" name="slef">
-            <span id="self">Самоцетирование</span>
-
-            <select name="theme">
-                <option value="" disabled selected>Выбрать тему</option>
-            </select>
-
-            <select name="article">
-                <option value="" disabled selected>Выбрать статью</option>
-            </select>
-
-            <button id="graph-export">Экспорт</button>
-        </div>-->
 
         <div id="graph-area"></div>
         <div style="clear: both"></div>
