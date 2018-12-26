@@ -1,4 +1,4 @@
-const api = "http://172.18.14.33:8888/graph/";
+const api = "http://localhost:8888/graph/";
 
 $(function() {
     $("[data-back]").click(function(){
@@ -18,8 +18,7 @@ $(function() {
             url: api + 'import',
             type: 'POST',
             data: JSON.stringify(JSON.parse($('#import-data').val())),
-            contentType: "application/json; charset=utf-8",
-            dataType: 'json',
+            contentType: 'application/json; charset=utf-8',
             success: function(msg){
                 alert("Успех");
                 console.log(msg);
@@ -85,7 +84,7 @@ $(function() {
                     topic = $(this).data("topic"),
                     year = $(this).data("year");
 
-                $.get(api + "search?paper_title=" + title, function(list){
+                $.get(api + "search?paper_title=" + title + "&is_with_self_citation=true", function(list){
                     const depPapers = [];
 
                     list.forEach(paper => {
@@ -99,14 +98,6 @@ $(function() {
                     });
 
                     renderTopicGraph(title, topic, year, depPapers);
-                });
-
-                $.get(api + "research_fields/list", function(list){
-                    $("#options select[name='theme'] option:not([disabled])").remove();
-
-                    list.forEach(l => {
-                        $("#options select[name='theme']").append('<option value="' + l + '">' + l + '</option>');
-                    });
                 });
             });
         });
@@ -155,7 +146,7 @@ function renderTopicGraph(paper, topic, year, list) {
         { id: 1, label: paper, shape: 'star', color: 'rgb(59, 75, 252)', size: 20, type: 'paper' },
         
         //Тема
-        { id: 2, label: topic, shape: 'dot', color: 'rgb(205, 162, 190)', size: 50, type: 'topic' },
+        { id: 2, label: topic, shape: 'dot', color: 'rgb(205, 162, 190)', size: 20, type: 'topic' },
 
         //Год
         { id: 3, label: year + '', shape: 'dot', color: 'yellow', size: 10, type: 'year' },
@@ -169,7 +160,7 @@ function renderTopicGraph(paper, topic, year, list) {
     list.forEach((paper, i) => {
         const id = nodesData.length + i + 1;
 
-        nodesData.push({ id: id, label: paper, shape: 'dot', color: 'rgb(59, 75, 252)', size: 20, type: 'paper' });
+        nodesData.push({ id: id, label: paper, shape: 'dot', color: 'rgb(59, 75, 252)', size: 5, type: 'paper' });
         edgesData.push({ from: id, to: 1, color: 'blue', arrows:'to' });
     });
 
@@ -206,9 +197,9 @@ function renderTopicGraph(paper, topic, year, list) {
 			
 
             if(currPapers.length) {
-                $.get(api + "search?paper_title=" + currPapers[0].label, renderPapersGraph);
+                $.get(api + "search?paper_title=" + currPapers[0].label + "&is_with_self_citation=true", renderPapersGraph);
             } else if (currTopics.length) {
-				$.get(api + "search?research_field=" + currTopics[0].label, renderPapersGraph);
+				$.get(api + "search?research_field=" + currTopics[0].label + "&is_with_self_citation=true", renderPapersGraph);
 			}
         }
     });
@@ -313,7 +304,7 @@ function renderMainGraph(list) {
         if(tIndex === -1) {
             num++;
 
-            nodesData.push({ id: num, label: topic, shape: 'dot', color: 'orange', size: 20, type: 'topic' });
+            nodesData.push({ id: num, label: topic, shape: 'dot', color: 'orange', size: 50, type: 'topic' });
             edgesData.push({ from: index, to: num, color: {color: 'orange'}, arrows:'to' });
         } else {
             edgesData.push({ from: index, to: nodesData[tIndex].id, color: {color: 'orange'}, arrows:'to' });
